@@ -1,0 +1,194 @@
+# General configs
+state: 'train'
+device: 'cuda'
+num_gpus: 1
+eps_ratio: 1e-9                       # Will be parsed as string!
+base_dir: '.'
+load_data: True                      # Should the data be loaded? (Remark: For training the data must be loaded. However, for inference/generation one might only want to load the trained models and not the data itself.)
+logging: True                         # Should we log during training?
+make_figs: True                       # Make figures when training?
+save_figs: True                       # Save figures made during training (only relevant if make_figs=True)
+outputs_dir: './tmp'                  # Where all outputs will be saved in
+configs_dir: './tmp/configs'          # Where config (this file, overrides, and final configs) files can be found
+checkpoints_dir: './tmp/checkpoints'  # Where checkpoints will be saved in
+figs_save_dir: './tmp/figs_saved'     # Where figures will be saved in (only relevant if make_figs=True and save_figs=True)
+models_save_dir: './tmp/saved_models' # Where the weights of the models will be be saved in
+models_load_dir: './tmp/saved_models' # From where the weights of the models will be loaded from (usually this will be the same path as the models_save_dir)
+iteration: 0                       # Iteration number (used for logging and saving)
+temperature: 0.1                   # Temperature for sampling from the model   
+cond_value: 0                      # Conditioning value for the model (used for sampling)
+num_samples: 500                   # Number of samples to be generated
+seed: 42
+
+# Use the continuous- or discrete-time framework
+# modified
+# If number of timesteps is "not" specified (not 'null' here, which is parsed as None), 
+# use the continuous-time framework: 
+# - Discrete Flow Modeling for denoising model
+# - Discrete Guidance for guidance
+# If number of timesteps is specified, use the discrete-time framework 
+# - D3PM for denoising model
+# - DiGress for guidance
+num_timesteps: null # null => Continuous-time framework | integer => Discrete-time framework
+
+# Should pads be fixed in the noising (and thus also in the denoising) process? True
+fix_pads: False
+
+# Configs for data and data-preprocessing
+data:
+    which_dataset: 'sumo' # Which dataset to use (the only option is 'qmugs' at the moment)
+    preprocessing:
+        torch_data_property_names: ['waiting_time'] # Which molecular properties to include in the torch dataset
+        validation_train_ratio: 0.2                                        # Ratio of validation to train set size, where validation set is used for hold-out evaluation.
+        random_seed_split: 42                         # Random seed of the validation-train split
+        filter_order: ['waiting_time']     # Order of molecular properties used during filtering (in-memory preprocessing)
+        filter_range_dict:                                          # Range of number of rings that molecules require to be included in the dataset
+            waiting_time:       [0, 2000]                                            # Range of LogP (i.e., lipophilicity) values that molecules require to be included in the dataset
+        # Specifications for creation of train sets used to train the 
+        # property-predictor models that are subsampled from total 
+        # (unconditional, i.e. 'denoising') train set.
+        property_data_sampling_dict:
+            waiting_time:
+                fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+                # stratify, use_max_num_bins
+                stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+                # datahandling.py
+                use_max_num_bins: True                                      # Use maximal number of bins for stratification based on property-value binning?
+                seed: 100                                                   # Seed for subsampling
+            num_rings:
+                fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+                stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+                use_max_num_bins: True                                      # Use maximal number of bins for stratification based on property-value binning?
+                seed: 100                                                   # Seed for subsampling
+            logp:
+                fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+                stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+                use_max_num_bins: False                                     # Use maximal number of bins for stratification based on property-value binning?
+                seed: 101                                                   # Seed for subsampling
+            num_heavy_atoms:
+                fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+                stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+                use_max_num_bins: False                                     # Use maximal number of bins for stratification based on property-value binning?
+                seed: 102                                                   # Seed for subsampling
+
+                # logp:
+            #     fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+            #     stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+            #     use_max_num_bins: False                                     # Use maximal number of bins for stratification based on property-value binning?
+            #     seed: 101                                                   # Seed for subsampling
+            # num_heavy_atoms:
+            #     fraction: 1.0                                               # Which fraction of the total ('denoising') train set to subsample. If fraction=1.0: No subsampling and property-specific train set is equivalent to total (unconditional, i.e. 'denoising') train set.
+            #     stratify: False                                             # Should subsampling be stratified w.r.t. the property?
+            #     use_max_num_bins: False                                     # Use maximal number of bins for stratification based on property-value binning?
+            #     seed: 102                                                   # Seed for subsampling
+
+    dataloaders:
+        train:
+            batch_size: 256
+        validation:
+            batch_size: 256
+
+    categorical: True # Is the state-space categorical?
+
+    # Set the following fields to None (null in yaml) and then update them when they are determined during in-memory preprocessing
+    shape: null
+    S: null
+    pad_index: null
+    train_property_sigma_dict: null
+    train_num_tokens_freq_dict: null
+
+# Configs for denoising model
+denoising_model:
+    num_hidden: 2                   # Number of hidden layers
+    hidden_dim: 20000               # Dimension of each hidden layer
+    activation_fn:
+        name: 'ReLU'                # Activation function. E.g. 'RELU', 'SELU', or 'ELU'
+        params: null                # Parameters of the activation function. 'params' can be null (parsed as None), a dictionary (e.g., {'alpha': 1} for 'ELU'), or not specified in the configs.
+    # modified
+    p_dropout: 0.1              # Dropout probability
+    eps: 1e-10                      # Epsilon to be used for numerical stability. Will be parsed as string!
+    init_seed: 42                   # Model weights initialization seed
+    fix_pads: False                  # Fix padding during noising process.
+    stack_time: True                # Stack time and spatial features as model input (i.e., for learnable function f(s) use s=[x, t] if stack_time=True and s=x if stack_time=False)
+    save_name: 'denoising_model.pt' # Name under which the model weights will be saved in (within 'models_save_dir')
+
+num_rings_predictor_model:
+    y_guide_name: 'num_rings'       # Name of the property
+    hidden_dims: [1000]             # Dimensions of all hidden layers (i.e. [1000] is one hidden layer with dimension 1000)
+    activation_fn:
+        name: 'ReLU'                # Activation function. E.g. 'RELU', 'SELU', or 'ELU'
+        params: null                # Parameters of the activation function. 'params' can be null (parsed as None), a dictionary (e.g., {'alpha': 1} for 'ELU'), or not specified in the configs.
+    p_dropout: 0.1                  # Dropout probability
+    eps: 1e-10                      # Epsilon to be used for numerical stability. Will be parsed as string!
+    init_seed: 43                   # Model weights initialization seed
+    type: 'normal'                  # Which type of likelihood to be used. Options are: 'categorical', 'ordinal', and 'noraml' (for 'continuous' y-values). (Default if not specified: 'normal')
+    stack_time: False       
+
+    # Configs for number of rings predictor model
+waiting_time_predictor_model:
+    y_guide_name: 'waiting_time'       # Name of the property
+    hidden_dims: [1000]             # Dimensions of all hidden layers (i.e. [1000] is one hidden layer with dimension 1000)
+    activation_fn:
+        name: 'ReLU'                # Activation function. E.g. 'RELU', 'SELU', or 'ELU'
+        params: null                # Parameters of the activation function. 'params' can be null (parsed as None), a dictionary (e.g., {'alpha': 1} for 'ELU'), or not specified in the configs.
+    p_dropout: 0.1                  # Dropout probability
+    eps: 1e-10                      # Epsilon to be used for numerical stability. Will be parsed as string!
+    init_seed: 43                   # Model weights initialization seed
+    type: 'normal'                  # Which type of likelihood to be used. Options are: 'categorical', 'ordinal', and 'noraml' (for 'continuous' y-values). (Default if not specified: 'normal')
+    stack_time: False               # Stack time and spatial features as model input (i.e., for learnable function f(s) use s=[x, t] if stack_time=True and s=x if stack_time=False)
+
+# Configs for logp (i.e., lipophilicity) predictor model
+logp_predictor_model:
+    y_guide_name: 'logp'            # Name of the property
+    hidden_dims: [1000]             # Dimensions of all hidden layers (i.e. [1000] is one hidden layer with dimension 1000)
+    activation_fn:
+        name: 'ReLU'                # Activation function. E.g. 'RELU', 'SELU', or 'ELU'
+        params: null                # Parameters of the activation function. 'params' can be null (parsed as None), a dictionary (e.g., {'alpha': 1} for 'ELU'), or not specified in the configs.
+    p_dropout: 0.1                  # Dropout probability
+    eps: 1e-10                      # Epsilon to be used for numerical stability. Will be parsed as string!
+    init_seed: 43                   # Model weights initialization seed
+    stack_time: False               # Stack time and spatial features as model input (i.e., for learnable function f(s) use s=[x, t] if stack_time=True and s=x if stack_time=False)
+
+# Configs for number of heavy atoms predictor model
+num_heavy_atoms_predictor_model:
+    y_guide_name: 'num_heavy_atoms' # Name of the property
+    hidden_dims: [1000]             # Dimensions of all hidden layers (i.e. [1000] is one hidden layer with dimension 1000)
+    activation_fn:
+        name: 'ReLU'                # Activation function. E.g. 'RELU', 'SELU', or 'ELU'
+        params: null                # Parameters of the activation function. 'params' can be null (parsed as None), a dictionary (e.g., {'alpha': 1} for 'ELU'), or not specified in the configs.
+    p_dropout: 0.1                  # Dropout probability
+    eps: 1e-10                      # Epsilon to be used for numerical stability. Will be parsed as string!
+    init_seed: 43                   # Model weights initialization seed
+    stack_time: False               # Stack time and spatial features as model input (i.e., for learnable function f(s) use s=[x, t] if stack_time=True and s=x if stack_time=False)
+
+# Configs for training setup (specified individually for each of the models)
+training:
+    denoising_model:
+        optimizer: 'Adam'           # Optimizer to be used
+        lr: 0.001                  # Learning rate to be used
+        num_epochs: 100             # Number of epochs to be trained for
+        clip_grad: False             # Use gradient clipping?
+        warmup: 0                   # Specify learning rate warmup. Remark: Learning rate warmup is only used when specified 'warmup' is bigger than 0.
+        seed: 42                    # Random state seed for training (that has an impact on the order of batches during training)
+    waiting_time_predictor_model:
+        optimizer: 'Adam'           # Optimizer to be used
+        lr: 0.001                  # Learning rate to be used
+        num_epochs: 100              # Number of epochs to be trained for
+        clip_grad: True             # Use gradient clipping?
+        warmup: 0                   # Specify learning rate warmup. Remark: Learning rate warmup is only used when specified 'warmup' is bigger than 0.
+        seed: 42                    # Random state seed for training (that has an impact on the order of batches during training)
+    logp_predictor_model:
+        optimizer: 'Adam'           # Optimizer to be used
+        lr: 0.0001                  # Learning rate to be used
+        num_epochs: 50              # Number of epochs to be trained for
+        clip_grad: True             # Use gradient clipping?
+        warmup: 0                   # Specify learning rate warmup. Remark: Learning rate warmup is only used when specified 'warmup' is bigger than 0.
+        seed: 42                    # Random state seed for training (that has an impact on the order of batches during training)
+    num_heavy_atoms_predictor_model:
+        optimizer: 'Adam'           # Optimizer to be used
+        lr: 0.0001                  # Learning rate to be used
+        num_epochs: 50              # Number of epochs to be trained for
+        clip_grad: True             # Use gradient clipping?
+        warmup: 0                   # Specify learning rate warmup. Remark: Learning rate warmup is only used when specified 'warmup' is bigger than 0.
+        seed: 42                    # Random state seed for training (that has an impact on the order of batches during training)
+    

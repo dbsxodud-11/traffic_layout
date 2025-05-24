@@ -1,0 +1,7 @@
+applications/molecules까지 들어가서 입력
+// Training
+CUDA_VISIBLE_DEVICES=5 python scripts/train.py -c ./config_files/training_defaults_sumo.yaml -m "denoising_model"
+CUDA_VISIBLE_DEVICES=5 python scripts/train.py -c ./config_files/training_defaults_sumo.yaml -m "all"
+
+// Sampling
+CUDA_VISIBLE_DEVICES=5 python scripts/generate.py -c config_files/generation_defaults.yaml -n 1000 -p "waiting_time=400" -o 'sampler.guide_temp=0.25'

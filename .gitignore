@@ -1,0 +1,12 @@
+data/
+results/
+__pycache__/
+
+*.net.xml
+*.rou.xml
+*.sumocfg
+*.tripinfo.xml
+*.npz
+*.csv
+*.pkl
+*.egg-info
