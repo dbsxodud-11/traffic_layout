@@ -1,3 +1,4 @@
+# Official Code for Urban Traffic Network Layout Optimization with Guided Discrete Diffusion Models (WSDM 2026)
 
 ### Installation
 ```
